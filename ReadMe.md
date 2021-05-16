@@ -6,5 +6,4 @@
 - Create Personal Alerts
 - Search with Pincode and State and District
 - Age Filter for both alerts and center list
-## ISSUES 
-- Shared Resources betweeen Threads 
+
