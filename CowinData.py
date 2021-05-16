@@ -5,7 +5,7 @@ from dateutil.relativedelta import relativedelta
 import  time
 #import  multiprocessing
 import threading
-token='1849435569:AAHDYqbL-rIimeMyPVaPfoghkySHa6aqoKA'
+token='<YOUR_TOKEN>'
 url_getUpdate = "https://api.telegram.org/bot"+token+"/getUpdates"
 url_sendMessage="https://api.telegram.org/bot"+token+"/sendMessage?chat_id="
 headers = {
