@@ -5,9 +5,11 @@ from dateutil.relativedelta import relativedelta
 import  time
 #import  multiprocessing
 import threading
-token='<YOUR_TOKEN>'
+import sqlite3
+token='<Your Token>'
 url_getUpdate = "https://api.telegram.org/bot"+token+"/getUpdates"
 url_sendMessage="https://api.telegram.org/bot"+token+"/sendMessage?chat_id="
+print(url_sendMessage)
 headers = {
     'accept': 'application/json',
     'Accept-Language':'hi_IN',
@@ -21,10 +23,10 @@ states_map={}
 user_setAletrs={}
 user_type={}
 user_selected_age={}
-use_al_len=0
 max_UpdatedID=0
 messagesQued=[]
 botIdeal=True
+DbinUse=False
 welcomeMsg='Welcome to Cowin Bot \n Please Choose \n 1. Set Alert \n 2. View Center List'
 ageMsg='Select Age\n 1. 18+\n 2. 45+'
 searchMsg='Select Searh criteria \n 1. By Pincode \n 2. State Name and District Name'
@@ -99,6 +101,7 @@ def getMaxIdPos(max_id,getLatestMessage,k):
             return x
 
 def getUpdates(max_UpdatedID):
+    global botIdeal
     response = requests.get(url_getUpdate, headers=headers)
     data=response.text
     getLatestMessage=json.loads(data)
@@ -125,6 +128,9 @@ def getUpdates(max_UpdatedID):
 
 def sendMessage(chatID,message):
     sen_to=url_sendMessage+chatID+'&text='+message
+    f=open('/home/shivam/sa.txt','a')
+    f.write(str(sen_to)+'\n')
+    f.close()
     requests.get(sen_to, headers=headers)
              
 def consumeMessages():
@@ -261,47 +267,100 @@ def processMessage(chat_id,message,type_me,message_id):
     elif(userAt_step.get(str(chat_id))>1 and user_type.get(str(chat_id))==2):
         processMessagesForCenterView(chat_id, message, type_me, message_id)
 
+def createTable():
+    conn = sqlite3.connect('cowinDb.db')
+    conn.execute('''CREATE TABLE USER_ALERTS
+         (ID            TEXT    NOT NULL,
+         URL            TEXT    NOT NULL,
+         AGE            TEXT    NOT NULL,
+         ALERT_SENT     INT    NOT NULL);''')
+    conn.commit()
+
+def insertData(user_alert_data):
+    conn = sqlite3.connect('cowinDb.db')
+    query="Select id,url,age,alert_sent,count(*) from USER_ALERTS where id="
+    global DbinUse
+    DbinUse=False
+    for x in user_alert_data:
+        cursor=conn.execute(query+x)
+        cursor_data=cursor.fetchall()
+        if(int(cursor_data[0][4])>0 and user_alert_data.get(str(x))!=str(cursor_data[0][1])):
+            conn.execute("INSERT INTO USER_ALERTS (ID,URL,AGE,ALERT_SENT) VALUES('"+str(x)+"','"+str(user_alert_data.get(str(x)))+"','0',0)")
+            conn.commit()
+        elif(int(cursor_data[0][4])==0):
+            conn.execute("INSERT INTO USER_ALERTS (ID,URL,AGE,ALERT_SENT) VALUES('"+str(x)+"','"+str(user_alert_data.get(str(x)))+"','0',0)") 
+            conn.commit()
+    conn.close()
+
 def updtesProcess(maxId):
     t=1
+    global DbinUse
+    use_al_len=0
     while True:
         if (t==1):
-            maxId='127749753'
+            maxId='353718995'
         max_UpdatedID=getUpdates(int(maxId))
         maxId=max_UpdatedID
         consumeMessages()
         time.sleep(1)
         print(user_setAletrs)
+        print(str(use_al_len)+'------------')
+        print(str(len(user_setAletrs))+'---------------')
+        if(len(user_setAletrs)>0 and use_al_len<len(user_setAletrs) ):
+            insertData(user_setAletrs)
+            use_al_len=len(user_setAletrs)
+            DbinUse=True
         t=2
         print('in')
         
 def consueProcess():
+        global botIdeal
+        global DbinUse
         while True:
-             if(botIdeal and len(user_setAletrs)>0):
+             print(str(botIdeal)+'-----------------------------')
+             print(str(DbinUse)+'-----------------------------')
+             print(str(len(user_setAletrs))+'-----------------------')
+             if(botIdeal and len(user_setAletrs)>=0 and DbinUse):
+                 conn = sqlite3.connect('cowinDb.db')
+                 print('Done')
+                 query="Select id,url,age,alert_sent from USER_ALERTS where alert_sent=1"
+                 updateQuery="update USER_ALERTS set alert_sent=0 where id='"
+                 cursor=conn.execute(query)
                  time.sleep(2)
-                 for x in  user_setAletrs:
-                    age=str(user_selected_age.get(str(x)))
-                    age=getAge(age)
-                    center_data=getCenterList(0,age,str(user_setAletrs.get(x)))
+                 for x in  cursor:
+                    age=str(user_selected_age.get(str(x[0])))
+                    print(str(x[3])+'-------Alert-----------') 
+                    print(str(age)+'-------------------------------')
+                    center_data=getCenterList(0,age,str(x[1]))
                     pos=center_data.find("No Slots Availabe")
+                    print(str(pos)+'------------------------------')
                     if(pos==-1):
-                        sendMessage(x,'Slots Are Available Now \nList Of Centers\n')
-                        sendMessage(x,center_data)
-                        sendMessage(x, '\n Visit https://selfregistration.cowin.gov.in/ and register \n Thanks for use cowin bot')
-                        user_setAletrs.pop(x)
-            
+                        sendMessage(str(x[0]),'Slots Are Available Now \n')
+                        #sendMessage(str(x[0]),str(center_data))
+                        sendMessage(str(x[0]), '\nVisit https://selfregistration.cowin.gov.in/ and book your slot. \nThanks for using cowin bot')
+                        updateQuery=updateQuery+str(x[0])+"' and url='"+str(x[1])+"'"
+                        print(updateQuery)
+                        conn.execute(updateQuery)
+                        conn.commit()
+                        print("---------Alert Sent------------")
+                 conn.close()
              time.sleep(30)
 
+
+
+
+#createTable()
 t1 = threading.Thread(target=updtesProcess, args=(str(max_UpdatedID)))
 t2 = threading.Thread(target=consueProcess)
   
     # starting thread 1
 t1.start()
 # starting thread 2
-#t2.start()
+t2.start()
   
  # wait until thread 1 is completely executed
 t1.join()
 # wait unti
-#t2.join()
+t2.join()
 
 
