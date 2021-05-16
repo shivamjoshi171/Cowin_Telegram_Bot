@@ -5,7 +5,7 @@ from dateutil.relativedelta import relativedelta
 import  time
 #import  multiprocessing
 import threading
-token='<Your_Token>'
+token='1849435569:AAHDYqbL-rIimeMyPVaPfoghkySHa6aqoKA'
 url_getUpdate = "https://api.telegram.org/bot"+token+"/getUpdates"
 url_sendMessage="https://api.telegram.org/bot"+token+"/sendMessage?chat_id="
 headers = {
@@ -103,22 +103,25 @@ def getUpdates(max_UpdatedID):
     data=response.text
     getLatestMessage=json.loads(data)
     messages_len=len(getLatestMessage["result"])
-    latest_messageUpID=getLatestMessage["result"][messages_len-1]["update_id"]
-    print(max_UpdatedID,latest_messageUpID)
-    pos_last_upID=getMaxIdPos(max_UpdatedID,getLatestMessage,messages_len)+1
-    if(max_UpdatedID<latest_messageUpID):
-         botIdeal=False
-         for x in range(pos_last_upID,messages_len,1):
-              message_data=getLatestMessage["result"][x]["message"]["text"]
-              message_id=getLatestMessage["result"][x]["message"]["message_id"]
-              chat_id=getLatestMessage["result"][x]["message"]["chat"]["id"]
-              chat_type=message_data.isnumeric()
-              final_m=str(chat_id)+','+str(message_data)+','+str(chat_type)+','+str(message_id)
-              messagesQued.append(str(final_m))
-              print(x)
+    if(messages_len)>0:
+        latest_messageUpID=getLatestMessage["result"][messages_len-1]["update_id"]
+        print(max_UpdatedID,latest_messageUpID)
+        pos_last_upID=getMaxIdPos(max_UpdatedID,getLatestMessage,messages_len)+1
+        if(max_UpdatedID<latest_messageUpID):
+             botIdeal=False
+             for x in range(pos_last_upID,messages_len,1):
+                  message_data=getLatestMessage["result"][x]["message"]["text"]
+                  message_id=getLatestMessage["result"][x]["message"]["message_id"]
+                  chat_id=getLatestMessage["result"][x]["message"]["chat"]["id"]
+                  chat_type=message_data.isnumeric()
+                  final_m=str(chat_id)+','+str(message_data)+','+str(chat_type)+','+str(message_id)
+                  messagesQued.append(str(final_m))
+                  print(x)
+        else:
+           botIdeal=True
+        return latest_messageUpID
     else:
-       botIdeal=True
-    return latest_messageUpID
+        return 0
 
 def sendMessage(chatID,message):
     sen_to=url_sendMessage+chatID+'&text='+message
@@ -300,4 +303,5 @@ t1.start()
 t1.join()
 # wait unti
 #t2.join()
+
 
